@@ -1,127 +1,59 @@
-# Job Application Tracker
+# Job Application Tracker 0.1
 
-A learning project for building a practical job-application tracker with Python and PostgreSQL.
+A small CLI for learning Python and PostgreSQL directly. It uses Psycopg 3 and handwritten SQL—no
+ORM, web framework, or frontend.
 
-## Current scope: Stage 1 only
+## Features
 
-Build a command-line application using:
+- Save companies, job postings, source IDs/URLs, salary details, and skills.
+- List, inspect, and search jobs.
+- Record and update application statuses and notes.
+- Account-scope records now in preparation for later multi-tenancy.
 
-- Python
-- PostgreSQL
-- `psycopg`
-- handwritten SQL
+This release remains single-user. It has no login, members, web UI, scraping, or automatic
+LinkedIn/JobStreet lookup. See [the plan](docs/PLAN.md).
 
-The goal is to learn PostgreSQL directly before introducing an ORM or web framework.
+## Setup
 
-## Domain
-
-The first version should track:
-
-- companies
-- jobs
-- applications
-- skills
-- skills required by each job
-- notes associated with an application
-
-## Suggested database schema
-
-### `companies`
-
-| Column | Purpose |
-|---|---|
-| `id` | Primary key |
-| `name` | Company name |
-| `website` | Company website; may be null |
-
-### `jobs`
-
-| Column | Purpose |
-|---|---|
-| `id` | Primary key |
-| `company_id` | Foreign key to `companies` |
-| `title` | Job title |
-| `url` | Job-posting URL |
-| `location` | Job location |
-| `salary_min` | Minimum advertised salary; may be null |
-| `salary_max` | Maximum advertised salary; may be null |
-| `description` | Job description |
-| `date_found` | Date the job was found |
-
-### `applications`
-
-| Column | Purpose |
-|---|---|
-| `id` | Primary key |
-| `job_id` | Foreign key to `jobs` |
-| `status` | Current application status |
-| `date_applied` | Application date; may be null until applied |
-| `notes` | Free-form application notes; may be null |
-
-### `skills`
-
-| Column | Purpose |
-|---|---|
-| `id` | Primary key |
-| `name` | Unique skill name |
-
-### `job_skills`
-
-| Column | Purpose |
-|---|---|
-| `job_id` | Foreign key to `jobs` |
-| `skill_id` | Foreign key to `skills` |
-| `importance` | How important the skill is for this job |
-
-`job_skills` represents the many-to-many relationship between jobs and skills.
-
-## Required CLI operations
-
-The interface should support commands equivalent to:
+Requires Python 3.11+ and PostgreSQL. From the repository folder:
 
 ```bash
-python jobs.py add
-python jobs.py list
-python jobs.py show 42
-python jobs.py apply 42
-python jobs.py search "C#"
+createdb job_tracker
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e . pytest
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/job_tracker"
+export JOB_TRACKER_ACCOUNT="Personal"
+job-tracker db-init
 ```
 
-Expected intent:
+On Windows PowerShell, activation and configuration are:
 
-- `add`: add a job and its associated company/details
-- `list`: list saved jobs with useful sorting or filtering
-- `show <job_id>`: display one job and its related data
-- `apply <job_id>`: record or update an application for a job
-- `search <term>`: search jobs, companies, descriptions, or skills
+```powershell
+.venv\Scripts\Activate.ps1
+$env:DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/job_tracker"
+$env:JOB_TRACKER_ACCOUNT = "Personal"
+job-tracker db-init
+```
 
-Exact arguments and interaction style are intentionally left for implementation.
+Adjust the database username/password for your PostgreSQL installation.
 
-## PostgreSQL concepts to practise
+## Example
 
-The implementation should deliberately exercise:
+```bash
+job-tracker add --company "Example Pty Ltd" --title "Backend Engineer" \
+  --location "Remote" --source linkedin --source-job-id 123456789 \
+  --url "https://www.linkedin.com/jobs/view/123456789" \
+  --skill "C#:5" --skill "PostgreSQL:4"
 
-- primary and foreign keys
-- joins
-- many-to-many relationships
-- indexes
-- constraints
-- `NULL` handling
-- transactions
-- aggregation
-- sorting
-- filtering
+job-tracker list
+job-tracker show 1
+job-tracker apply 1 --notes "Submitted through company website"
+job-tracker apply 1 --status interviewing
+job-tracker search "PostgreSQL"
+job-tracker list --status interviewing
+```
 
-## Out of scope
+Use `job-tracker COMMAND --help` for options. Run tests with `pytest`.
 
-Do not add these during Stage 1:
-
-- React or another frontend
-- a web UI
-- FastAPI or another HTTP API
-- SQLAlchemy or another ORM
-- Alembic migrations
-- AI features
-- the later multi-package application architecture
-
-Keep the first implementation plain: one Python CLI, `psycopg`, PostgreSQL, and SQL written by hand.
+More detail is in [the implementation notes](docs/IMPLEMENTATION.md).
