@@ -80,6 +80,9 @@ def build_parser():
     search = commands.add_parser("search", help="search jobs")
     search.add_argument("term")
     search.add_argument("--limit", type=int, default=50)
+    # withdraw = commands.add_parser("withdraw", help="withdraw an existing application")
+    # withdraw.add_argument("job_id", type=int)
+    # withdraw.add_argument("--notes")
     return parser
 
 
