@@ -153,20 +153,87 @@ def show_job(connection, account_id, job_id):
         if row[key] not in (None, ""):
             print(f"{label}: {row[key]}")
 
+def set_application_status(
+    connection,
+    account_id,
+    job_id,
+    status,
+    date_applied=None,
+    notes=None,
+):
+    cleaned_notes = optional_text(notes)
+    applied_on = date_applied or (
+        date.today() if status != "interested" else None
+    )
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT 1
+            FROM jobs
+            WHERE account_id = %s AND id = %s
+            """,
+            (account_id, job_id),
+        )
+
+        if not cursor.fetchone():
+            raise LookupError(f"Job {job_id} was not found.")
+
+        cursor.execute(
+            """
+            INSERT INTO applications (
+                account_id,
+                job_id,
+                status,
+                date_applied,
+                notes
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (account_id, job_id)
+            DO UPDATE SET
+                status = EXCLUDED.status,
+                date_applied = COALESCE(
+                    EXCLUDED.date_applied,
+                    applications.date_applied
+                ),
+                notes = COALESCE(
+                    EXCLUDED.notes,
+                    applications.notes
+                ),
+                updated_at = now()
+            """,
+            (
+                account_id,
+                job_id,
+                status,
+                applied_on,
+                cleaned_notes,
+            ),
+        )
+
+    note_text = f": {cleaned_notes}" if cleaned_notes else ""
+
+    connection.commit()
+    print(f"Job {job_id} is now {status}{note_text}.")
 
 def apply_to_job(connection, account_id, args):
-    applied_on = args.date_applied or (date.today() if args.status != "interested" else None)
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT 1 FROM jobs WHERE account_id=%s AND id=%s", (account_id, args.job_id))
-        if not cursor.fetchone():
-            raise LookupError(f"Job {args.job_id} was not found.")
-        cursor.execute("""INSERT INTO applications (account_id,job_id,status,date_applied,notes) VALUES (%s,%s,%s,%s,%s)
-            ON CONFLICT (account_id,job_id) DO UPDATE SET status=EXCLUDED.status,
-            date_applied=COALESCE(EXCLUDED.date_applied,applications.date_applied),
-            notes=COALESCE(EXCLUDED.notes,applications.notes),updated_at=now()""",
-            (account_id,args.job_id,args.status,applied_on,optional_text(args.notes)))
-    connection.commit(); print(f"Job {args.job_id} is now {args.status}.")
+    set_application_status(
+        connection,
+        account_id,
+        args.job_id,
+        args.status,
+        args.date_applied,
+        args.notes,
+    )
 
+def withdraw_from_job(connection, account_id, args):
+    set_application_status(
+        connection,
+        account_id,
+        args.job_id,
+        "withdrawn",
+        notes=args.notes,
+    )
 
 def run(args):
     with connect() as connection:
@@ -177,6 +244,7 @@ def run(args):
         elif args.command == "list": print_jobs(find_jobs(connection, account_id, status=args.status, limit=args.limit))
         elif args.command == "show": show_job(connection, account_id, args.job_id)
         elif args.command == "apply": apply_to_job(connection, account_id, args)
+        elif args.command == "withdraw": withdraw_from_job(connection, account_id, args)
         elif args.command == "search": print_jobs(find_jobs(connection, account_id, term=args.term, limit=args.limit))
 
 
